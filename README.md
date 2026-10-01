@@ -27,10 +27,25 @@ simulators without rebooting them. The CLI path is absolute, and the installer
 copies the profile outside this checkout. Reinstall after changing the profile
 or moving the CLI.
 
-The mobile profile retains push, StoreKit, universal links, Photos, Contacts,
-Calendar, iCloud/keychain, and native diagnostics. Siri, Spotlight, and widgets
-need a stock simulator or a revised profile. A partial slim count is expected
-because the profile intentionally keeps some services enabled.
+The mobile profile targets PocketManage's current local QA workflow. It disables
+164 of SimSlim 0.11.0's 170 managed services, retaining only:
+
+| Service | Purpose |
+| --- | --- |
+| `com.apple.apsd` | Push notifications |
+| `com.apple.swcd` | Universal links |
+| `com.apple.searchd` | Local file indexing and picker Recents |
+| `com.apple.assetsd` | Photo-library access |
+| `com.apple.medialibraryd` | Media-library database |
+| `com.apple.assetsd.nebulad` | Photo-asset transfers; retained conservatively for picker compatibility |
+
+Core services outside SimSlim's managed list remain enabled, including local
+Keychain, location, and sharing. PocketManage uses local Keychain storage and its
+own contacts/calendar data; neither requires iCloud sync or native Contacts and
+Calendar daemons. StoreKit, Wallet, iCloud Drive/sync, native Contacts/Calendar,
+Photos analysis, and Apple telemetry services are disabled. Use a stock simulator
+or a revised profile when testing those capabilities, Siri, full Spotlight, or widgets.
+Cloud-backed photos/files and authenticated app flows still need separate QA.
 
 ## T3 Code and test readiness
 
@@ -39,11 +54,11 @@ executable, target, `--config`, and `--session` returned by `device_open` on eve
 `agent-device` command. Install this service separately on each remote host.
 
 Automatic slimming happens after boot and may take longer than the scan interval.
-Before app tests, both checks must pass on the device's host:
+Before app tests, both configuration checks must pass on the device's host:
 
 ```bash
 simslim verify <udid> --profile ~/.config/simslim/mobile-dev.json
-simslim doctor <udid> --requires push,storekit,universal-links,photos,contacts,calendar,icloud,keychain-sync
+simslim doctor <udid> --requires push,universal-links
 ```
 
 If the profile differs, apply it before QA:
@@ -52,9 +67,16 @@ If the profile differs, apply it before QA:
 simslim on <udid> --profile ~/.config/simslim/mobile-dev.json
 ```
 
+After upgrading from the broader profile, run `on` once per existing simulator
+to restore `searchd`, which the old profile disabled. A watcher restart alone
+cannot re-enable it.
+
 This can reboot the device. The watcher retries failures but does not repair
 profile edits during an already processed boot session. Service checks verify
-configuration; app features still need end-to-end tests.
+configuration; app features still need end-to-end tests. Test local photo and
+file attachments, login/token persistence, links, and push delivery. SimSlim's
+`doctor --requires photos` also requires background `photoanalysisd`, which this
+profile intentionally disables; it does not measure picker functionality.
 
 ## Stats and service controls
 
