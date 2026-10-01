@@ -1,6 +1,13 @@
 {
   "name": "mobile-dev",
-  "description": "Mobile QA with push, links, pickers, keychain and native diagnostics retained",
-  "except": ["store", "web", "photos", "pim", "icloud", "telemetry"],
-  "keep": ["com.apple.passd", "com.apple.financed"]
+  "description": "PocketManage QA: push, universal links and local photo pickers; local Keychain stays enabled",
+  "except": [],
+  "keep": [
+    "com.apple.apsd",
+    "com.apple.swcd",
+    "com.apple.assetsd",
+    "com.apple.assetsd.nebulad",
+    "com.apple.medialibraryd",
+    "com.apple.searchd"
+  ]
 }
