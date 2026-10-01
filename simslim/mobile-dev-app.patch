@@ -1,6 +1,6 @@
 --- a/gui/AppModel.swift
 +++ b/gui/AppModel.swift
-@@ -134,6 +134,41 @@
+@@ -134,6 +134,44 @@
      guard !hasLoaded else { return }
      hasLoaded = true
      await refresh(includeCategories: true)
@@ -14,7 +14,8 @@
 +      .appendingPathComponent(".config/simslim/mobile-dev.json")
 +  }
 +
-+  func loadMobileDevProfile() {
++  @discardableResult
++  func loadMobileDevProfile() -> Bool {
 +    struct Profile: Decodable {
 +      let except: [String]
 +      let keep: [String]
@@ -36,23 +37,250 @@
 +      keptCategoryIDs = categoryIDs
 +      keptServiceLabels = serviceLabels
 +      record(.info, "Selected Mobile Dev profile: \(disabledDaemonCount) services to disable")
++      return true
 +    } catch {
 +      recordFailure("Could not load Mobile Dev profile: \(error.localizedDescription)", present: true)
++      return false
 +    }
    }
 
    func refresh(includeCategories: Bool = false) async {
+@@ -375,6 +413,13 @@
+       recordFailure(
+         "Could not measure \(device.name): \(error.localizedDescription)", present: true)
+     }
++  }
++
++  var runningDevices: [SimulatorDevice] { devices.filter(\.isBooted) }
++
++  func applyMobileDevProfile(to targets: [SimulatorDevice]) async {
++    guard !isBusy, !targets.isEmpty, loadMobileDevProfile() else { return }
++    await applyProfile(to: targets)
+   }
+
+   func applyProfileToSelection() async {
 --- a/gui/ContentView.swift
 +++ b/gui/ContentView.swift
-@@ -736,6 +736,11 @@
+@@ -172,6 +172,8 @@
+         .help("Refresh simulator status")
+
+         Menu {
++          Button("Select Running") { model.select(Set(model.runningDevices.map(\.udid))) }
++            .disabled(model.runningDevices.isEmpty)
+           Button("Select Visible") { model.select(filteredUDIDs) }
+             .disabled(filteredDevices.isEmpty)
+           Button("Clear Selection") { model.clearSelection() }
+@@ -211,23 +213,37 @@
+   }
+
+   private var header: some View {
+-    HStack(spacing: 18) {
+-      VStack(alignment: .leading, spacing: 4) {
+-        Text("Installed Simulators")
+-          .font(.system(size: 27, weight: .bold, design: .rounded))
+-        Text(lastUpdatedText)
+-          .font(.subheadline)
+-          .foregroundStyle(.secondary)
+-      }
+-
+-      Spacer()
+-
++    ViewThatFits(in: .horizontal) {
++      HStack(spacing: 18) {
++        headerTitle
++        Spacer()
++        headerMetrics
++      }
++      VStack(alignment: .leading, spacing: 10) {
++        headerTitle
++        headerMetrics
++      }
++    }
++    .padding(.horizontal, 20)
++    .padding(.vertical, 15)
++  }
++
++  private var headerTitle: some View {
++    VStack(alignment: .leading, spacing: 4) {
++      Text("Installed Simulators")
++        .font(.system(size: 27, weight: .bold, design: .rounded))
++      Text(lastUpdatedText)
++        .font(.subheadline)
++        .foregroundStyle(.secondary)
++    }
++  }
++
++  private var headerMetrics: some View {
++    HStack(spacing: 12) {
+       MetricPill(value: "\(model.devices.count)", label: "Installed", color: .blue)
+       MetricPill(value: "\(model.bootedCount)", label: "Booted", color: .orange)
+       MetricPill(value: "\(model.selectionCount)", label: "Selected", color: .purple)
+     }
+-    .padding(.horizontal, 20)
+-    .padding(.vertical, 15)
+   }
+
+   private var selectionBar: some View {
+@@ -302,46 +318,51 @@
+   }
+
+   private var simulatorTable: some View {
+-    VStack(spacing: 0) {
+-      tableHeader
+-      Divider()
+-
+-      GeometryReader { geometry in
+-        Group {
+-          if model.isRefreshing && model.devices.isEmpty {
+-            VStack(spacing: 12) {
+-              ProgressView()
+-              Text("Loading simulators…")
+-                .foregroundStyle(.secondary)
+-            }
+-            .frame(width: geometry.size.width, height: geometry.size.height)
+-          } else if filteredDevices.isEmpty {
+-            ContentUnavailableView(
+-              searchText.isEmpty ? "No iOS Simulators" : "No Matches",
+-              systemImage: "iphone.slash",
+-              description: Text(
+-                searchText.isEmpty
+-                  ? "Install an iOS Simulator runtime in Xcode."
+-                  : "Try a different name, UDID, or iOS version.")
+-            )
+-            .frame(width: geometry.size.width, height: geometry.size.height)
+-          } else {
+-            ScrollView {
+-              LazyVStack(spacing: 0) {
+-                ForEach(filteredDevices) { device in
+-                  SimulatorRow(
+-                    device: device,
+-                    diskCleanupCategories: selectedCleanableDiskCategories,
+-                    managementSheet: $managementSheet
+-                  )
+-                  Divider().padding(.leading, 48)
++    GeometryReader { viewport in
++      ScrollView(.horizontal) {
++        VStack(spacing: 0) {
++          tableHeader
++          Divider()
++
++          GeometryReader { geometry in
++            Group {
++              if model.isRefreshing && model.devices.isEmpty {
++                VStack(spacing: 12) {
++                  ProgressView()
++                  Text("Loading simulators…")
++                    .foregroundStyle(.secondary)
++                }
++                .frame(width: geometry.size.width, height: geometry.size.height)
++              } else if filteredDevices.isEmpty {
++                ContentUnavailableView(
++                  searchText.isEmpty ? "No iOS Simulators" : "No Matches",
++                  systemImage: "iphone.slash",
++                  description: Text(
++                    searchText.isEmpty
++                      ? "Install an iOS Simulator runtime in Xcode."
++                      : "Try a different name, UDID, or iOS version.")
++                )
++                .frame(width: geometry.size.width, height: geometry.size.height)
++              } else {
++                ScrollView {
++                  LazyVStack(spacing: 0) {
++                    ForEach(filteredDevices) { device in
++                      SimulatorRow(
++                        device: device,
++                        diskCleanupCategories: selectedCleanableDiskCategories,
++                        managementSheet: $managementSheet
++                      )
++                      Divider().padding(.leading, 48)
++                    }
++                  }
++                  .frame(width: geometry.size.width, alignment: .top)
+                 }
+               }
+-              .frame(width: geometry.size.width, alignment: .top)
+             }
+-          }
+-        }
+-        .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
++            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .top)
++          }
++        }
++        .frame(width: max(930, viewport.size.width), height: viewport.size.height)
+       }
+     }
+     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+@@ -735,6 +756,27 @@
+   private var memoryContent: some View {
      VStack(alignment: .leading, spacing: 15) {
        stateLegend
-
-+      Button("Mobile Dev") { model.loadMobileDevProfile() }
-+        .buttonStyle(.bordered)
-+        .disabled(model.isBusy)
-+        .help("Load ~/.config/simslim/mobile-dev.json")
 +
++      VStack(alignment: .leading, spacing: 8) {
++        Button("Mobile Dev") { model.loadMobileDevProfile() }
++          .help("Load ~/.config/simslim/mobile-dev.json")
++        Button("Apply to Selected (\(model.selectionCount))") {
++          let targets = model.selectedDevices
++          Task { await model.applyMobileDevProfile(to: targets) }
++        }
++        .disabled(model.selectionCount == 0)
++        Button("Apply to All Running (\(model.runningDevices.count))") {
++          let targets = model.runningDevices
++          Task { await model.applyMobileDevProfile(to: targets) }
++        }
++        .disabled(model.runningDevices.isEmpty)
++        Text("Applies Mobile Dev. Simulators may reboot; apps and data are retained.")
++          .font(.caption)
++          .foregroundStyle(.secondary)
++          .fixedSize(horizontal: false, vertical: true)
++      }
++      .buttonStyle(.bordered)
++      .disabled(model.isBusy)
+
        VStack(alignment: .leading, spacing: 5) {
          HStack {
-           Text("Services to keep")
+--- a/gui/SimSlimApp.swift
++++ b/gui/SimSlimApp.swift
+@@ -10,10 +10,12 @@
+       ContentView()
+         .environmentObject(model)
+         .background(ToolbarDisplayModeConfigurator().frame(width: 0, height: 0))
+-        .frame(minWidth: 1080, minHeight: 700)
++        .frame(minWidth: 1000, minHeight: 600)
+         .task { await model.load() }
+     }
+-    .defaultSize(width: 1260, height: 820)
++    .defaultSize(
++      width: min(1400, (NSScreen.main?.visibleFrame.width ?? 1464) - 64),
++      height: min(820, (NSScreen.main?.visibleFrame.height ?? 884) - 64))
+     .windowStyle(.titleBar)
+     .windowToolbarStyle(.unified(showsTitle: false))
+     .commands {
+@@ -39,6 +41,7 @@
+ }
+
+ private final class ToolbarDisplayModeView: NSView {
++  private var hasFittedWindow = false
+   private weak var observedToolbar: NSToolbar?
+   private var isArrangingToolbar = false
+   private var arrangementIsScheduled = false
+@@ -55,7 +58,20 @@
+     }
+     DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+       self?.applyDisplayMode()
++      self?.fitWindowToScreen()
+     }
++  }
++
++  private func fitWindowToScreen() {
++    guard !hasFittedWindow, let window, let screen = window.screen else { return }
++    hasFittedWindow = true
++    let visible = screen.visibleFrame
++    var frame = window.frame
++    frame.size.width = min(frame.width, visible.width)
++    frame.size.height = min(frame.height, visible.height)
++    frame.origin.x = min(max(frame.minX, visible.minX), visible.maxX - frame.width)
++    frame.origin.y = min(max(frame.minY, visible.minY), visible.maxY - frame.height)
++    window.setFrame(frame, display: true)
+   }
+
+   func applyDisplayMode() {

@@ -94,8 +94,16 @@ with `make app`, then open `build/SimSlim.app`.
 
 The optional patch adds a **Mobile Dev** button in the Memory sidebar and selects
 that profile at startup when `~/.config/simslim/mobile-dev.json` exists. Click it
-to reload the watcher's profile, select simulators, then click **Slim**. Selecting
-the profile alone does not modify a simulator.
+to reload the watcher's profile. **Apply to Selected** applies Mobile Dev to the
+checked rows; **Apply to All Running** applies it to every booted simulator,
+including rows hidden by search. Both reload the profile from disk before applying
+and show target counts. These actions may reboot simulators. **Selection → Select
+Running** also lets you select all running simulators before adjusting the selection.
+Selecting **Mobile Dev** alone does not modify a simulator.
+
+The patched app fits its initial and restored window to the screen. Narrow windows
+scroll the simulator columns horizontally and wrap the header instead of clipping
+the sidebar or hiding the final columns.
 
 Build the patched app from the matching upstream release with Go and Xcode:
 
