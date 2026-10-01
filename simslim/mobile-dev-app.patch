@@ -40,14 +40,14 @@
 +      recordFailure("Could not load Mobile Dev profile: \(error.localizedDescription)", present: true)
 +    }
    }
- 
+
    func refresh(includeCategories: Bool = false) async {
 --- a/gui/ContentView.swift
 +++ b/gui/ContentView.swift
 @@ -736,6 +736,11 @@
      VStack(alignment: .leading, spacing: 15) {
        stateLegend
- 
+
 +      Button("Mobile Dev") { model.loadMobileDevProfile() }
 +        .buttonStyle(.bordered)
 +        .disabled(model.isBusy)
