@@ -1,0 +1,58 @@
+--- a/gui/AppModel.swift
++++ b/gui/AppModel.swift
+@@ -134,6 +134,41 @@
+     guard !hasLoaded else { return }
+     hasLoaded = true
+     await refresh(includeCategories: true)
++    if FileManager.default.fileExists(atPath: mobileDevProfileURL.path) {
++      loadMobileDevProfile()
++    }
++  }
++
++  private var mobileDevProfileURL: URL {
++    FileManager.default.homeDirectoryForCurrentUser
++      .appendingPathComponent(".config/simslim/mobile-dev.json")
++  }
++
++  func loadMobileDevProfile() {
++    struct Profile: Decodable {
++      let except: [String]
++      let keep: [String]
++    }
++
++    do {
++      let profile = try JSONDecoder().decode(
++        Profile.self, from: Data(contentsOf: mobileDevProfileURL))
++      let categoryIDs = Set(profile.except)
++      let serviceLabels = Set(profile.keep)
++      guard !categories.isEmpty,
++        categoryIDs.isSubset(of: Set(categories.map(\.id))),
++        serviceLabels.isSubset(of: Set(categories.flatMap(\.labels)))
++      else {
++        throw NSError(
++          domain: "SimSlim", code: 1,
++          userInfo: [NSLocalizedDescriptionKey: "Mobile Dev profile contains unknown categories or services."])
++      }
++      keptCategoryIDs = categoryIDs
++      keptServiceLabels = serviceLabels
++      record(.info, "Selected Mobile Dev profile: \(disabledDaemonCount) services to disable")
++    } catch {
++      recordFailure("Could not load Mobile Dev profile: \(error.localizedDescription)", present: true)
++    }
+   }
+ 
+   func refresh(includeCategories: Bool = false) async {
+--- a/gui/ContentView.swift
++++ b/gui/ContentView.swift
+@@ -736,6 +736,11 @@
+     VStack(alignment: .leading, spacing: 15) {
+       stateLegend
+ 
++      Button("Mobile Dev") { model.loadMobileDevProfile() }
++        .buttonStyle(.bordered)
++        .disabled(model.isBusy)
++        .help("Load ~/.config/simslim/mobile-dev.json")
++
+       VStack(alignment: .leading, spacing: 5) {
+         HStack {
+           Text("Services to keep")
