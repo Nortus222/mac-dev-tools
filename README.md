@@ -90,6 +90,36 @@ Logs are in `~/Library/Logs/SimSlim/`. The upstream SwiftUI app also displays
 simulator RAM, disk usage, and service state. Build it from the upstream repo
 with `make app`, then open `build/SimSlim.app`.
 
+### Mobile Dev button in the macOS app
+
+The optional patch adds a **Mobile Dev** button in the Memory sidebar and selects
+that profile at startup when `~/.config/simslim/mobile-dev.json` exists. Click it
+to reload the watcher's profile. **Apply to Selected** applies Mobile Dev to the
+checked rows; **Apply to All Running** applies it to every booted simulator,
+including rows hidden by search. Both reload the profile from disk before applying
+and show target counts. These actions may reboot simulators. **Selection → Select
+Running** also lets you select all running simulators before adjusting the selection.
+Selecting **Mobile Dev** alone does not modify a simulator.
+
+The patched app fits its initial and restored window to the screen. Narrow windows
+scroll the simulator columns horizontally and wrap the header instead of clipping
+the sidebar or hiding the final columns.
+
+Build the patched app from the matching upstream release with Go and Xcode:
+
+```bash
+SIMSLIM_PATCH="$(pwd)/simslim/mobile-dev-app.patch"
+SIMSLIM_SOURCE="$(mktemp -d)"
+git clone --depth 1 --branch v0.11.0 https://github.com/MobAI-App/simslim.git "$SIMSLIM_SOURCE"
+cd "$SIMSLIM_SOURCE"
+git apply "$SIMSLIM_PATCH"
+make app
+open build/SimSlim.app
+```
+
+The app validates category and service names before replacing the current
+selection. This patch targets SimSlim 0.11.0; a stock app upgrade removes it.
+
 For stock testing, stop automatic slimming before restoring the device:
 
 ```bash
