@@ -2,18 +2,21 @@
 
 macOS development tools shared across local agent and mobile app workflows.
 
-## Automatic iOS simulator slimming
+## Automatic simulator slimming
 
 [SimSlim](https://github.com/MobAI-App/simslim) reduces simulator memory by
 disabling selected background services. This repo installs its watcher as a
-per-user macOS login service. It covers simulators opened by T3 Code, Flutter,
-and Xcode in the default and Xcode testing device sets.
+per-user macOS login service. It covers iOS, Apple TV (tvOS), Apple Watch
+(watchOS), and Apple Vision Pro (visionOS) simulators opened by T3 Code, Flutter, and Xcode in the default
+and Xcode testing device sets. SimSlim 0.12.0 or newer is required.
 
-On an Apple Silicon Mac with Xcode, an iOS Simulator runtime, and Python 3:
+On an Apple Silicon Mac with Xcode, a supported Simulator runtime, and Python 3:
 
 ```bash
 brew tap mobai-app/tap
 brew install mobai-app/tap/simslim
+# For an existing Homebrew installation:
+brew upgrade mobai-app/tap/simslim
 python3 simslim/install.py install
 ```
 
@@ -28,7 +31,7 @@ copies the profile outside this checkout. Reinstall after changing the profile
 or moving the CLI.
 
 The mobile profile targets PocketManage's current local QA workflow. It disables
-164 of SimSlim 0.11.0's 170 managed services, retaining only:
+163 of SimSlim 0.12.0's 169 managed services, retaining only:
 
 | Service | Purpose |
 | --- | --- |
@@ -38,6 +41,11 @@ The mobile profile targets PocketManage's current local QA workflow. It disables
 | `com.apple.assetsd` | Photo-library access |
 | `com.apple.medialibraryd` | Media-library database |
 | `com.apple.assetsd.nebulad` | Photo-asset transfers; retained conservatively for picker compatibility |
+
+SimSlim 0.12.0 also keeps `com.apple.gamed` enabled to avoid XCUITest launch
+delays. Its platform safeguards retain `homed` on watchOS and `mobileassetd`
+on visionOS. The shared profile applies to Apple TV as well as iOS; Apple TV
+app behavior still needs its own QA.
 
 Core services outside SimSlim's managed list remain enabled, including local
 Keychain, location, and sharing. PocketManage uses local Keychain storage and its
@@ -110,7 +118,7 @@ Build the patched app from the matching upstream release with Go and Xcode:
 ```bash
 SIMSLIM_PATCH="$(pwd)/simslim/mobile-dev-app.patch"
 SIMSLIM_SOURCE="$(mktemp -d)"
-git clone --depth 1 --branch v0.11.0 https://github.com/MobAI-App/simslim.git "$SIMSLIM_SOURCE"
+git clone --depth 1 --branch v0.12.0 https://github.com/MobAI-App/simslim.git "$SIMSLIM_SOURCE"
 cd "$SIMSLIM_SOURCE"
 git apply "$SIMSLIM_PATCH"
 make app
@@ -118,7 +126,7 @@ open build/SimSlim.app
 ```
 
 The app validates category and service names before replacing the current
-selection. This patch targets SimSlim 0.11.0; a stock app upgrade removes it.
+selection. This patch targets SimSlim 0.12.0; a stock app upgrade removes it.
 
 For stock testing, stop automatic slimming before restoring the device:
 
@@ -128,5 +136,8 @@ simslim off <udid>
 ```
 
 Removing the service leaves applied profiles intact. Restore reboots the device;
-reopen its T3 stream afterward. Persistent slimming needs iOS 18.5 or newer;
-older runtimes are slimmed again after boot by the watcher.
+reopen its T3 stream afterward. Persistent slimming needs iOS/tvOS 18.5,
+watchOS 11.5, or visionOS 2.5 or newer.
+The watcher uses no-reboot slimming on every supported runtime and reapplies it
+after boot on older runtimes. Restart the watcher after upgrading the CLI so
+the running process discovers Apple TV and the other supported platforms.

@@ -5,6 +5,7 @@ import argparse
 import os
 from pathlib import Path
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -35,7 +36,13 @@ def main():
         parser.error("Install SimSlim first, or set SIMSLIM_BIN to its executable.")
     # Keep Homebrew's stable symlink rather than pinning a Cellar version.
     binary = os.path.abspath(binary)
-    subprocess.run([binary, "--version"], check=True)
+    version_output = subprocess.run(
+        [binary, "--version"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    version = re.fullmatch(r"simslim v?(\d+)\.(\d+)\.(\d+)", version_output)
+    if version is None or tuple(map(int, version.groups())) < (0, 12, 0):
+        parser.error("SimSlim 0.12.0 or newer is required for Apple TV support. Upgrade SimSlim first.")
+    print(version_output)
     profile_source = Path(__file__).resolve().parent / "mobile-dev.json"
     # Store runtime files outside the worktree so cleanup cannot break the service.
     config_dir = Path.home() / ".config/simslim"
