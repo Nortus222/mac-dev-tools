@@ -140,12 +140,12 @@
 -            .frame(width: geometry.size.width, height: geometry.size.height)
 -          } else if filteredDevices.isEmpty {
 -            ContentUnavailableView(
--              searchText.isEmpty ? "No iOS Simulators" : "No Matches",
--              systemImage: "iphone.slash",
+-              searchText.isEmpty ? "No Simulators" : "No Matches",
+-              systemImage: "rectangle.slash",
 -              description: Text(
 -                searchText.isEmpty
--                  ? "Install an iOS Simulator runtime in Xcode."
--                  : "Try a different name, UDID, or iOS version.")
+-                  ? "Install an iOS, tvOS, watchOS, or visionOS Simulator runtime in Xcode."
+-                  : "Try a different name, UDID, or OS version.")
 -            )
 -            .frame(width: geometry.size.width, height: geometry.size.height)
 -          } else {
@@ -175,12 +175,12 @@
 +                .frame(width: geometry.size.width, height: geometry.size.height)
 +              } else if filteredDevices.isEmpty {
 +                ContentUnavailableView(
-+                  searchText.isEmpty ? "No iOS Simulators" : "No Matches",
-+                  systemImage: "iphone.slash",
++                  searchText.isEmpty ? "No Simulators" : "No Matches",
++                  systemImage: "rectangle.slash",
 +                  description: Text(
 +                    searchText.isEmpty
-+                      ? "Install an iOS Simulator runtime in Xcode."
-+                      : "Try a different name, UDID, or iOS version.")
++                      ? "Install an iOS, tvOS, watchOS, or visionOS Simulator runtime in Xcode."
++                      : "Try a different name, UDID, or OS version.")
 +                )
 +                .frame(width: geometry.size.width, height: geometry.size.height)
 +              } else {
